@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meine Noten</title>
+<style>
+:root{--ink:#111827;--muted:#6b7280;--line:#d1d5db;--accent:#2563eb;--bad:#dc2626;--avg:#9ca3af;--avg-ink:#fff}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:#fff;color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:500}
+main{max-width:760px;margin:0 auto;padding:14px 12px 48px}
+.bar{display:flex;justify-content:flex-end}
+.all{font:inherit;font-weight:700;font-size:.95rem;padding:9px 16px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--ink);cursor:pointer}
+.all:hover{background:#f3f4f6}
+.all:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1{font-size:clamp(1.6rem,6vw,2.6rem);font-weight:800;line-height:1.15;margin:12px 0 22px;letter-spacing:-.02em}
+h1 span{display:inline-block;padding:0 .3em;border-radius:.3em;background:var(--avg);color:var(--avg-ink);transition:background .25s}
+h2{font-size:1rem;font-weight:700;color:var(--muted);margin:0 0 8px 2px}
+.wrap{overflow-x:auto;padding:2px}
+table{border-collapse:separate;border-spacing:0;width:100%}
+th,td{padding:0;height:52px}
+th{height:44px;font-size:.95rem;font-weight:700;text-align:center;white-space:nowrap}
+th.fach{text-align:left;padding-left:12px}
+.b{border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.t1{border-top:1px solid var(--line)}
+.l1{border-left:1px solid var(--line)}
+th.fach,td.f0{position:sticky;left:0;z-index:2;background:#fff;min-width:118px}
+th.sum,td.avgc{position:sticky;right:34px;z-index:2;background:#fff}
+th.xh,td.x{position:sticky;right:0;z-index:2;background:#fff}
+th.nh,td.nc{min-width:60px;padding:0 4px}
+th.fach{border-top-left-radius:16px}
+thead th.last{border-top-right-radius:16px}
+tbody tr:last-child td.f0{border-bottom-left-radius:16px}
+tbody tr:last-child td.last{border-bottom-right-radius:16px}
+th.sum{color:#16a34a;font-weight:800}
+input{width:100%;height:100%;font:inherit;color:var(--ink);background:#fff;border:0;padding:0 8px;min-width:0;border-radius:inherit}
+input.fach{font-size:1.05rem;font-weight:600;padding-left:12px}
+input.note{text-align:center;font-weight:800;font-size:1.25rem;padding:0;border-radius:10px;height:44px}
+input:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+input.invalid{background:#fee2e2}
+td.avgc{padding:0 6px;width:76px}
+.avg{display:flex;align-items:center;justify-content:center;height:40px;border-radius:12px;font-size:1.3rem;font-weight:800;background:#f3f4f6;color:var(--muted)}
+td.x{width:34px;text-align:center}
+.del{width:32px;height:32px;border:0;border-radius:8px;background:#fff;color:var(--muted);font-size:1.4rem;cursor:pointer}
+.del:hover,.del:focus-visible{background:#f3f4f6;color:var(--bad);outline:none}
+.add{margin-top:14px;width:100%;padding:14px;font:inherit;font-weight:800;font-size:1.05rem;border:0;border-radius:14px;background:var(--ink);color:#fff;cursor:pointer}
+.add:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.cols{display:flex;gap:10px;margin-top:10px}
+.sec{flex:1;padding:12px;font:inherit;font-weight:700;font-size:1rem;border:1px solid var(--line);border-radius:14px;background:#fff;color:var(--ink);cursor:pointer}
+.sec:disabled{opacity:.4;cursor:default}
+.sec:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hint{color:var(--muted);font-size:.9rem;margin-top:12px;line-height:1.4}
+</style>
+</head>
+<body>
+<main>
+  <div class="bar"><button class="all" id="toggle" type="button">Nur neues Fach</button></div>
+  <h1>Mein Notendurchschnitt: <span id="total">–</span></h1>
+  <h2 id="title">Alle Fächer</h2>
+  <div class="wrap">
+    <table>
+      <thead id="head"></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <datalist id="faecher"></datalist>
+  <button class="add" id="add" type="button">+ Fach hinzufügen</button>
+  <div class="cols">
+    <button class="sec" id="addCol" type="button">+ Note-Spalte</button>
+    <button class="sec" id="remCol" type="button" title="Nur die letzte, leere Spalte kann entfernt werden">− Note-Spalte</button>
+  </div>
+  <p class="hint">Hier siehst du alle Fächer der 8. Klasse mit deinen Noten. Mehr Noten? Sobald du die letzte Spalte ausfüllst, kommt automatisch eine neue dazu. Alles wird automatisch gespeichert. Mit „Nur neues Fach“ oben rechts bekommst du eine leere Zeile, die alten Noten bleiben trotzdem gespeichert.</p>
+</main>
+<script>
+(function(){
+  var KEY="schulnoten-v4", OLD="schulnoten-v3", SEED="schulnoten-v4-faecher", COLKEY="schulnoten-v4-spalten", COLS=6;
+  var DEFAULTS=["Deutsch","Mathematik","Englisch","Zweite Fremdsprache","Biologie","Chemie","Physik","Geschichte","Geografie","Sozialkunde","Ethik / Religion","Kunsterziehung","Musik","Sport","Informatik","Wirtschaft / Technik"];
+  var data=load(), session={}, view="all", avgCells=[], visible=[];
+  var rowsEl=document.getElementById("rows"), btn=document.getElementById("toggle"), remBtn=document.getElementById("remCol");
+
+  function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+  function norm(r){
+    var n=[];for(var i=0;i<COLS;i++)n.push(String((r.n&&r.n[i])||""));
+    return {id:uid(),f:String(r.f||""),n:n};
+  }
+  function blank(){return norm({});}
+  function isEmpty(r){return r.f.trim()===""&&r.n.every(function(s){return s.trim()==="";});}
+  function load(){
+    var out=[];
+    try{
+      var c=parseInt(localStorage.getItem(COLKEY),10);if(c>0)COLS=c;
+      var raw=localStorage.getItem(KEY)||localStorage.getItem(OLD);
+      if(raw){
+        var d=JSON.parse(raw);
+        if(Array.isArray(d)){
+          d.forEach(function(r){if(r&&r.n&&r.n.length>COLS)COLS=r.n.length;});
+          out=d.map(norm);
+        }
+      }
+    }catch(e){}
+    out=out.filter(function(r){return !isEmpty(r);});
+    // Einmalig: alle Fächer der 8. Klasse anlegen (vorhandene Noten bleiben erhalten)
+    try{
+      if(!localStorage.getItem(SEED)){
+        var have={};out.forEach(function(r){have[r.f.trim().toLowerCase()]=true;});
+        var add=DEFAULTS.filter(function(s){return !have[s.toLowerCase()];}).map(function(s){return norm({f:s});});
+        out=add.concat(out);
+        localStorage.setItem(KEY,JSON.stringify(out));
+        localStorage.setItem(SEED,"1");
+      }
+    }catch(e){}
+    return out;
+  }
+  function save(){
+    try{
+      localStorage.setItem(COLKEY,String(COLS));
+      localStorage.setItem(KEY,JSON.stringify(data.filter(function(r){return !isEmpty(r);})));
+    }catch(e){}
+  }
+  function newRow(){var r=blank();data.push(r);session[r.id]=true;return r;}
+
+  function parse(s){var v=parseFloat(String(s).replace(",","."));return(isFinite(v)&&v>=1&&v<=6)?v:null;}
+  function fmt(v){return v.toFixed(1).replace(".",",");}
+  function mean(a){return a.reduce(function(x,y){return x+y;},0)/a.length;}
+  function valid(r){var v=[];r.n.forEach(function(s){var p=parse(s);if(p!==null)v.push(p);});return v;}
+  function colorFor(v){
+    if(v<2)return["#16a34a","#fff"];
+    if(v<3)return["#86d14a","#14301a"];
+    if(v<4)return["#facc15","#3a3000"];
+    if(v<5)return["#fb923c","#3a1d00"];
+    return["#dc2626","#fff"];
+  }
+  function paint(el,v){
+    if(v===null){el.textContent="–";el.style.background="";el.style.color="";return;}
+    var c=colorFor(v);el.textContent=fmt(v);el.style.background=c[0];el.style.color=c[1];
+  }
+  function update(){
+    visible.forEach(function(r,i){
+      var v=valid(r);paint(avgCells[i],v.length?Math.round(mean(v)*10)/10:null);
+    });
+    // Gesamtdurchschnitt: alle gespeicherten Noten, pro Fach (gleicher Name) zusammengefasst
+    var groups={};
+    data.forEach(function(r){
+      if(isEmpty(r))return;
+      var k=r.f.trim().toLowerCase()||("#"+r.id);
+      groups[k]=(groups[k]||[]).concat(valid(r));
+    });
+    var avgs=Object.keys(groups).map(function(k){return groups[k];}).filter(function(g){return g.length;}).map(mean);
+    var t=document.getElementById("total"),root=document.documentElement;
+    if(!avgs.length){t.textContent="–";root.style.setProperty("--avg","#9ca3af");root.style.setProperty("--avg-ink","#fff");}
+    else{
+      var tot=Math.round(mean(avgs)*10)/10,c=colorFor(tot);
+      t.textContent=fmt(tot);root.style.setProperty("--avg",c[0]);root.style.setProperty("--avg-ink",c[1]);
+    }
+    btn.textContent=view==="all"?"Nur neues Fach":"Alle Fächer";
+    var lastUsed=data.some(function(r){return String(r.n[COLS-1]||"").trim()!=="";});
+    remBtn.disabled=COLS<=1||lastUsed;
+  }
+  function td(cls){var e=document.createElement("td");if(cls)e.className=cls;return e;}
+  function th(txt,cls){var e=document.createElement("th");e.textContent=txt;if(cls)e.className=cls;return e;}
+
+  function noteCell(r,j){
+    var c=td("b nc"+(j===COLS-1?" last":"")),n=document.createElement("input");
+    n.type="text";n.inputMode="decimal";n.className="note";n.value=r.n[j];
+    n.setAttribute("aria-label","Note "+(j+1));
+    function chk(){n.classList.toggle("invalid",n.value.trim()!==""&&parse(n.value)===null);}
+    chk();
+    n.addEventListener("input",function(){
+      r.n[j]=n.value;chk();
+      if(j===COLS-1&&n.value.trim()!=="")growCol();
+      save();update();
+    });
+    c.appendChild(n);return c;
+  }
+  // Neue Spalte automatisch anhängen, ohne die Tabelle neu zu zeichnen (Tastatur bleibt offen)
+  function growCol(){
+    COLS++;
+    data.forEach(function(r){r.n.push("");});
+    var htr=document.getElementById("head").firstChild;
+    var old=htr.querySelector("th.last");if(old)old.classList.remove("last");
+    htr.insertBefore(th("Note "+COLS,"b t1 nh last"),htr.querySelector("th.sum"));
+    Array.prototype.forEach.call(rowsEl.children,function(tr,i){
+      var o=tr.querySelector("td.last");if(o)o.classList.remove("last");
+      tr.insertBefore(noteCell(visible[i],COLS-1),tr.querySelector("td.avgc"));
+    });
+  }
+  function renderHead(){
+    var head=document.getElementById("head"),tr=document.createElement("tr");
+    head.innerHTML="";
+    tr.appendChild(th("Fach","b t1 l1 fach"));
+    for(var j=0;j<COLS;j++)tr.appendChild(th("Note "+(j+1),"b t1 nh"+(j===COLS-1?" last":"")));
+    tr.appendChild(th("Ø","sum"));tr.appendChild(th("","xh"));
+    head.appendChild(tr);
+  }
+
+  function render(focusLast){
+    visible=view==="new"?data.filter(function(r){return session[r.id];}):data.slice();
+    if(view==="new"&&!visible.length){newRow();visible=data.filter(function(r){return session[r.id];});}
+    document.getElementById("title").textContent=view==="new"?"Neues Fach":"Alle Fächer";
+    renderHead();
+    rowsEl.innerHTML="";avgCells=[];
+    visible.forEach(function(r,i){
+      var tr=document.createElement("tr");
+      var c0=td("b l1 f0"),f=document.createElement("input");
+      f.type="text";f.className="fach";f.value=r.f;f.placeholder="Fach";f.setAttribute("list","faecher");f.setAttribute("aria-label","Fach");
+      f.addEventListener("input",function(){r.f=f.value;save();update();});
+      c0.appendChild(f);tr.appendChild(c0);
+      r.n.forEach(function(val,j){tr.appendChild(noteCell(r,j));});
+      var ca=td("avgc"),a=document.createElement("div");a.className="avg";a.textContent="–";
+      ca.appendChild(a);tr.appendChild(ca);avgCells.push(a);
+      var cx=td("x"),d=document.createElement("button");
+      d.type="button";d.className="del";d.textContent="×";d.setAttribute("aria-label","Fach löschen");
+      d.addEventListener("click",function(){data.splice(data.indexOf(r),1);delete session[r.id];save();render();});
+      cx.appendChild(d);tr.appendChild(cx);
+      rowsEl.appendChild(tr);
+      if(focusLast&&i===visible.length-1)f.focus();
+    });
+    update();
+  }
+
+  var dl=document.getElementById("faecher");
+  DEFAULTS.forEach(function(s){var o=document.createElement("option");o.value=s;dl.appendChild(o);});
+  btn.addEventListener("click",function(){
+    data=data.filter(function(r){return !isEmpty(r);});session={};
+    view=view==="new"?"all":"new";render();
+  });
+  document.getElementById("add").addEventListener("click",function(){newRow();render(true);});
+  document.getElementById("addCol").addEventListener("click",function(){
+    COLS++;data.forEach(function(r){r.n.push("");});save();render();
+  });
+  remBtn.addEventListener("click",function(){
+    if(remBtn.disabled)return;
+    COLS--;data.forEach(function(r){r.n.pop();});save();render();
+  });
+  if(data.some(function(r){return String(r.n[COLS-1]||"").trim()!=="";})){
+    COLS++;data.forEach(function(r){r.n.push("");});save();
+  }
+  render();
+})();
+</script>
+</body>
+</html>
